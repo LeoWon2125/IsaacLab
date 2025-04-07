@@ -8,8 +8,12 @@
 """Launch Isaac Sim Simulator first."""
 
 import argparse
+import os
 
 from isaaclab.app import AppLauncher
+
+# only use GPU indexed 1
+os.environ['CUDA_VISIBLE_DEVICES'] = "1"
 
 # local imports
 import cli_args  # isort: skip
@@ -60,12 +64,17 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlVecEnvWrapper, expor
 
 import isaaclab_tasks  # noqa: F401
 from isaaclab_tasks.utils import get_checkpoint_path, parse_env_cfg
+from isaaclab.utils.manual_control import manual_command
+import socket, json, threading
+
+
 
 # PLACEHOLDER: Extension template (do not remove this comment)
 
 
 def main():
     """Play with RSL-RL agent."""
+    threading.Thread(target=udp_server, daemon=True).start()
     # parse configuration
     env_cfg = parse_env_cfg(
         args_cli.task, device=args_cli.device, num_envs=args_cli.num_envs, use_fabric=not args_cli.disable_fabric
@@ -87,6 +96,8 @@ def main():
         resume_path = get_checkpoint_path(log_root_path, agent_cfg.load_run, agent_cfg.load_checkpoint)
 
     log_dir = os.path.dirname(resume_path)
+
+    resume_path = "/home/intern3/Desktop/IsaacLab/logs/rsl_rl/g1_rough/2025-04-04_18-34-15/model_2999.pt"
 
     # create isaac environment
     env = gym.make(args_cli.task, cfg=env_cfg, render_mode="rgb_array" if args_cli.video else None)
@@ -120,11 +131,12 @@ def main():
 
     # export policy to onnx/jit
     export_model_dir = os.path.join(os.path.dirname(resume_path), "exported")
+    # policy에 actor_critic이 지정됨
     export_policy_as_jit(
-        ppo_runner.alg.actor_critic, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt"
+        ppo_runner.alg.policy, ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.pt"
     )
     export_policy_as_onnx(
-        ppo_runner.alg.actor_critic, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
+        ppo_runner.alg.policy, normalizer=ppo_runner.obs_normalizer, path=export_model_dir, filename="policy.onnx"
     )
 
     dt = env.unwrapped.physics_dt
@@ -155,6 +167,20 @@ def main():
     # close the simulator
     env.close()
 
+def udp_server():
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    sock.bind(("0.0.0.0", 9999))  # 서버에서 포트 9999 수신
+    print("[UDP Server] Listening for velocity commands...")
+    while True:
+        data, _ = sock.recvfrom(1024)
+        try:
+            cmd = json.loads(data.decode())
+            manual_command["vx"] = cmd.get("vx", 0.0)
+            manual_command["vy"] = cmd.get("vy", 0.0)
+            manual_command["yaw"] = cmd.get("yaw", 0.0)
+            manual_command["enabled"] = True
+        except Exception as e:
+            print(f"[UDP Error] {e}")
 
 if __name__ == "__main__":
     # run the main function

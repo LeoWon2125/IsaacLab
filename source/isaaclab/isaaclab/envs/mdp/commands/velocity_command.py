@@ -23,6 +23,8 @@ if TYPE_CHECKING:
 
     from .commands_cfg import NormalVelocityCommandCfg, UniformVelocityCommandCfg
 
+from isaaclab.utils.manual_control import manual_command
+
 
 class UniformVelocityCommand(CommandTerm):
     r"""Command generator that generates a velocity command in SE(2) from uniform distribution.
@@ -158,6 +160,11 @@ class UniformVelocityCommand(CommandTerm):
         # TODO: check if conversion is needed
         standing_env_ids = self.is_standing_env.nonzero(as_tuple=False).flatten()
         self.vel_command_b[standing_env_ids, :] = 0.0
+
+        if manual_command["enabled"]:
+            self.vel_command_b[:, 0] = manual_command["vx"]
+            self.vel_command_b[:, 1] = manual_command["vy"]
+            self.vel_command_b[:, 2] = manual_command["yaw"]
 
     def _set_debug_vis_impl(self, debug_vis: bool):
         # set visibility of markers

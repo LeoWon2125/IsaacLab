@@ -153,8 +153,9 @@ class SimulationContext(_SimulationContext):
         # read flag for whether a local GUI is enabled
         self._local_gui = carb_settings_iface.get("/app/window/enabled")
         # read flag for whether livestreaming GUI is enabled
-        self._livestream_gui = carb_settings_iface.set_bool("/app/livestream/enabled", False)
+        # self._livestream_gui = carb_settings_iface.set_bool("/app/livestream/enabled", False)
 
+        self._livestream_gui = carb_settings_iface.get("/app/livestream/enabled")
         # read flag for whether the Isaac Lab viewport capture pipeline will be used,
         # casting None to False if the flag doesn't exist
         # this flag is set from the AppLauncher class
