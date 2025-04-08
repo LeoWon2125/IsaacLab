@@ -255,12 +255,20 @@ class ContactSensor(SensorBase):
         # check that only rigid bodies are selected
         leaf_pattern = self.cfg.prim_path.rsplit("/", 1)[-1]
         template_prim_path = self._parent_prims[0].GetPath().pathString
+
+        # 먼저, 지정된 경로로 모든 prim을 찾아보고 그 개수를 출력합니다.
+        all_prims = list(sim_utils.find_matching_prims(template_prim_path + "/" + leaf_pattern))
+        print(">>> Total prims found by pattern:", len(all_prims))
+
+        # contact reporter API가 활성화된 prim들만 필터링
         body_names = list()
-        for prim in sim_utils.find_matching_prims(template_prim_path + "/" + leaf_pattern):
-            # check if prim has contact reporter API
+        for prim in all_prims:
             if prim.HasAPI(PhysxSchema.PhysxContactReportAPI):
                 prim_path = prim.GetPath().pathString
                 body_names.append(prim_path.rsplit("/", 1)[-1])
+        print(">>> Recognized prim count with contact reporter API:", len(body_names))
+        print(">>> body names : ", body_names)
+
         # check that there is at least one body with contact reporter API
         if not body_names:
             raise RuntimeError(
@@ -273,6 +281,8 @@ class ContactSensor(SensorBase):
         body_names_regex = f"{self.cfg.prim_path.rsplit('/', 1)[0]}/{body_names_regex}"
         # convert regex expressions to glob expressions for PhysX
         body_names_glob = body_names_regex.replace(".*", "*")
+        # print(">>> filter_prim_paths_expr",self.cfg.filter_prim_paths_expr)
+
         filter_prim_paths_glob = [expr.replace(".*", "*") for expr in self.cfg.filter_prim_paths_expr]
 
         # create a rigid prim view for the sensor
@@ -281,6 +291,7 @@ class ContactSensor(SensorBase):
             body_names_glob, filter_patterns=filter_prim_paths_glob
         )
         # resolve the true count of bodies
+        print(">>> body physx view count:", self._body_physx_view.count)
         self._num_bodies = self.body_physx_view.count // self._num_envs
         # check that contact reporter succeeded
         if self._num_bodies != len(body_names):
@@ -327,6 +338,13 @@ class ContactSensor(SensorBase):
         # TODO: We are handling the indexing ourself because of the shape; (N, B) vs expected (N * B).
         #   This isn't the most efficient way to do this, but it's the easiest to implement.
         net_forces_w = self.contact_physx_view.get_net_contact_forces(dt=self._sim_physics_dt)
+        # print(">>> net_forces_w.shape:", net_forces_w.shape)
+        # print(">>> self._num_bodies:", self._num_bodies)
+        # print(f"[DEBUG] ContactSensor._num_bodies = {self._num_bodies}")
+
+        # print(">>> view shape:", net_forces_w.view(-1, self._num_bodies, 3).shape)
+        # print(">>> env_ids:", env_ids)
+        # print(">>> Contact sensor initialized with", self._num_bodies, "bodies per env")
         self._data.net_forces_w[env_ids, :, :] = net_forces_w.view(-1, self._num_bodies, 3)[env_ids]
         # update contact force history
         if self.cfg.history_length > 0:

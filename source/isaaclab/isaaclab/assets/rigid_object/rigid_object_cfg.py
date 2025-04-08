@@ -8,7 +8,6 @@ from isaaclab.utils import configclass
 from ..asset_base_cfg import AssetBaseCfg
 from .rigid_object import RigidObject
 
-
 @configclass
 class RigidObjectCfg(AssetBaseCfg):
     """Configuration parameters for a rigid object."""
