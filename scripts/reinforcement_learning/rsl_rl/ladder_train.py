@@ -4,6 +4,9 @@
 # SPDX-License-Identifier: BSD-3-Clause
 
 """Launch Isaac Sim Simulator first."""
+import os
+
+os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 import argparse
 import sys
@@ -42,9 +45,6 @@ simulation_app = app_launcher.app
 """Rest everything follows."""
 
 import gymnasium as gym
-import os
-
-os.environ['CUDA_LAUNCH_BLOCKING'] = "1"
 
 import torch
 from datetime import datetime

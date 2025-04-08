@@ -1,4 +1,7 @@
 from pxr import UsdGeom, Gf
+from math import cos, sin
+import random
+
 from isaaclab.assets.rigid_object import RigidObjectCfg
 from isaaclab.managers import RewardTermCfg as RewTerm
 from isaaclab.managers import SceneEntityCfg
@@ -74,134 +77,120 @@ class G1LadderRoughEnvCfg(LocomotionLadderEnvCfg):
     rewards: G1Rewards = G1Rewards()
 
     def __post_init__(self):
+        # post init of parent
         super().__post_init__()
+        # Scene
         self.scene.robot = G1_WITH_HAND_CFG.replace(prim_path="{ENV_REGEX_NS}/Robot")
+        self.scene.height_scanner.prim_path = "{ENV_REGEX_NS}/Robot/torso_link"
 
+        # Randomization
+        self.events.push_robot = None
+        self.events.add_base_mass = None
+        self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+        self.events.base_external_force_torque.params["asset_cfg"].body_names = ["torso_link"]
+        self.events.reset_base.params = {
+            "pose_range": {"x": (0, 0), "y": (0, 0), "yaw": (0, 0)},
+            "velocity_range": {
+                "x": (0.0, 0.0),
+                "y": (0.0, 0.0),
+                "z": (0.0, 0.0),
+                "roll": (0.0, 0.0),
+                "pitch": (0.0, 0.0),
+                "yaw": (0.0, 0.0),
+            },
+        }
         # --- Ladder Parameters ---
+        # theta = random.uniform(0.0, 1.0)
+        theta = 0.5
+        print("theta : ", theta)
+        # rung_spacing = random.uniform(0.25, 0.50)
+        rung_spacing = 0.35
+        print("rung_spacing : ", rung_spacing)
+
+        ladder_theta = theta
         rung_radius = 0.025
         rung_length = 0.7
-        rung_count = 5
-        rung_spacing = 0.3
+        rung_count = 15
         margin = 0.3
         ladder_height = (rung_count - 1) * rung_spacing + 2 * margin
 
         side_width = 0.05
-        side_depth = 0.05
-        side_offset = rung_length / 2 + side_width / 2 + 0.005
+        quat = (cos(ladder_theta / 2), 0.0, sin(ladder_theta / 2), 0.0)  # (w, x, y, z)
+        side_offset = rung_length / 2 + side_width / 2
 
+        base_x = -1.0
+        center_x = base_x + ladder_height*sin(ladder_theta)
+
+        dir_vec = (sin(ladder_theta), 0.0, cos(ladder_theta))
+        pole_center = [h * (ladder_height / 2) for h in dir_vec[:3]]
+        pole_center[0] = center_x
+        # --- Left Pole ---
         self.scene.left_pole = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/left_pole",
             spawn=sim_utils.CuboidCfg(
                 size=(side_width, side_width, ladder_height),
                 collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(  # ✅ 추가
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(
                     rigid_body_enabled=True,
                     kinematic_enabled=True,
-                    disable_gravity=True
                 ),
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
             ),
             init_state=RigidObjectCfg.InitialStateCfg(
-                pos=(0.0, -side_offset, ladder_height / 2)
+                pos=(center_x, -side_offset, pole_center[2]),
+                rot=quat,
             )
         )
 
+        # --- Right Pole ---
         self.scene.right_pole = RigidObjectCfg(
             prim_path="{ENV_REGEX_NS}/right_pole",
             spawn=sim_utils.CuboidCfg(
                 size=(side_width, side_width, ladder_height),
                 collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(  # ✅ 추가
+                rigid_props=sim_utils.RigidBodyPropertiesCfg(
                     rigid_body_enabled=True,
                     kinematic_enabled=True,
-                    disable_gravity=True
                 ),
                 visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
             ),
             init_state=RigidObjectCfg.InitialStateCfg(
-                pos=(0.0, side_offset, ladder_height / 2)
+                pos=(center_x, side_offset, pole_center[2]),
+                rot=quat,
             )
         )
+        base_y = 0.0  # pole 사이 중앙
 
-        self.scene.rung_0 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/rung_0",
-            spawn=sim_utils.CylinderCfg(
-                radius=rung_radius,
-                height=rung_length,
-                axis="Y",
-                collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                    rigid_body_enabled=True,
-                    kinematic_enabled=True,
-                ),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
-            ),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, margin + 0 * rung_spacing))
-        )
-
-        self.scene.rung_1 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/rung_1",
-            spawn=sim_utils.CylinderCfg(
-                radius=rung_radius,
-                height=rung_length,
-                axis="Y",
-                collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                    rigid_body_enabled=True,
-                    kinematic_enabled=True,
-                ),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
-            ),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, margin + 1 * rung_spacing))
-        )
-
-        self.scene.rung_2 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/rung_2",
-            spawn=sim_utils.CylinderCfg(
-                radius=rung_radius,
-                height=rung_length,
-                axis="Y",
-                collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                    rigid_body_enabled=True,
-                    kinematic_enabled=True,
-                ),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
-            ),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, margin + 2 * rung_spacing))
-        )
-
-        self.scene.rung_3 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/rung_3",
-            spawn=sim_utils.CylinderCfg(
-                radius=rung_radius,
-                height=rung_length,
-                axis="Y",
-                collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                    rigid_body_enabled=True,
-                    kinematic_enabled=True,
-                ),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
-            ),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, margin + 3 * rung_spacing))
-        )
-
-        self.scene.rung_4 = RigidObjectCfg(
-            prim_path="{ENV_REGEX_NS}/rung_4",
-            spawn=sim_utils.CylinderCfg(
-                radius=rung_radius,
-                height=rung_length,
-                axis="Y",
-                collision_props=sim_utils.CollisionPropertiesCfg(),
-                rigid_props=sim_utils.RigidBodyPropertiesCfg(
-                    rigid_body_enabled=True,
-                    kinematic_enabled=True,
-                ),
-                visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
-            ),
-            init_state=RigidObjectCfg.InitialStateCfg(pos=(0.0, 0.0, margin + 4 * rung_spacing))
-        )
+        for i in range(rung_count):
+            z_offset = margin + i * rung_spacing
+            local_offset = z_offset - ladder_height / 2  # 중심 기준으로 오프셋
+            rung_pos = (
+                center_x + dir_vec[0] * local_offset,  # x
+                0.0,
+                pole_center[2] + dir_vec[2] * local_offset,  # z
+            )
+            setattr(
+                self.scene,
+                f"rung_{i}",
+                RigidObjectCfg(
+                    prim_path=f"{{ENV_REGEX_NS}}/rung_{i}",
+                    spawn=sim_utils.CylinderCfg(
+                        radius=rung_radius,
+                        height=rung_length,
+                        axis="Y",
+                        collision_props=sim_utils.CollisionPropertiesCfg(),
+                        rigid_props=sim_utils.RigidBodyPropertiesCfg(
+                            rigid_body_enabled=True,
+                            kinematic_enabled=True,
+                            disable_gravity=True,
+                        ),
+                        visual_material=sim_utils.PreviewSurfaceCfg(diffuse_color=(1.0, 1.0, 1.0)),
+                    ),
+                    init_state=RigidObjectCfg.InitialStateCfg(
+                        pos=rung_pos,
+                    ),
+                )
+            )
 
         self.rewards.lin_vel_z_l2.weight = 0.0
         self.rewards.undesired_contacts = None
@@ -216,7 +205,7 @@ class G1LadderRoughEnvCfg(LocomotionLadderEnvCfg):
         self.commands.base_velocity.ranges.lin_vel_y = (-0.0, 0.0)
         self.commands.base_velocity.ranges.ang_vel_z = (-1.0, 1.0)
 
-        # self.terminations.base_contact.params["sensor_cfg"].body_names = "torso_link"
+        self.terminations.base_contact.params["sensor_cfg"].body_names = "torso_link"
 
 
 @configclass

@@ -5,7 +5,7 @@
 
 import math
 from dataclasses import MISSING
-from typing import List
+import random
 
 
 import isaaclab.sim as sim_utils
@@ -74,6 +74,16 @@ class MySceneCfg(InteractiveSceneCfg):
     rung_2: RigidObjectCfg = MISSING
     rung_3: RigidObjectCfg = MISSING
     rung_4: RigidObjectCfg = MISSING
+    rung_5: RigidObjectCfg = MISSING
+    rung_6: RigidObjectCfg = MISSING
+    rung_7: RigidObjectCfg = MISSING
+    rung_8: RigidObjectCfg = MISSING
+    rung_9: RigidObjectCfg = MISSING
+    rung_10: RigidObjectCfg = MISSING
+    rung_11: RigidObjectCfg = MISSING
+    rung_12: RigidObjectCfg = MISSING
+    rung_13: RigidObjectCfg = MISSING
+    rung_14: RigidObjectCfg = MISSING
 
     # sensors
     height_scanner = RayCasterCfg(
